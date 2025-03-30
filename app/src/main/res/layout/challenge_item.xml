@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:layout_marginBottom="12dp"
+    android:background="@drawable/header_background"
+    android:elevation="2dp">
+
+    <TextView
+        android:id="@+id/challengeTitle"
+        android:text="Straighten up during work"
+        android:textSize="16sp"
+        android:textColor="#1C1C1C"
+        android:textStyle="bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <TextView
+        android:id="@+id/challengeProgressText"
+        android:text="1 / 3"
+        android:textSize="14sp"
+        android:textColor="#777777"
+        android:layout_marginTop="4dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <ProgressBar
+        android:id="@+id/challengeProgressBar"
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:progress="33"
+        android:max="100"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:progressTint="#3D5AFE"
+        android:backgroundTint="#DDDDDD"
+        android:layout_marginTop="4dp" />
+</LinearLayout>

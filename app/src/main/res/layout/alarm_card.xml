@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_margin="16dp"
+    android:background="@drawable/header_background_rounded"
+    android:elevation="4dp"
+    android:clipToOutline="true">
+
+    <!-- Top blue section with time and clock -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:background="#D9EDF9"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <!-- Time and label -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/alarmTitle"
+                android:text="Next Alarm"
+                android:textColor="#000000"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/alarmTime"
+                android:text="12:44"
+                android:textSize="36sp"
+                android:textStyle="bold"
+                android:textColor="#000000"
+                android:layout_marginTop="4dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/alarmPeriod"
+                android:text="PM"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:textColor="#000000"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <!-- Analog clock image -->
+        <ImageView
+            android:id="@+id/clockImage"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:src="@drawable/ic_alarm"
+            android:layout_marginStart="8dp"
+            android:contentDescription="Clock"
+            app:tint="#000000" />
+    </LinearLayout>
+
+    <!-- Bottom section with interval and night break -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#FFFFFF"
+        android:padding="16dp">
+
+        <!-- Interval block -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:text="Interval"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:textColor="#000000"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <TextView
+                    android:id="@+id/alarmInterval"
+                    android:text="50 minutes"
+                    android:textSize="14sp"
+                    android:textColor="#6A7686"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/editInterval"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:src="@drawable/ic_edit"
+                app:tint="#000000"
+                android:background="@drawable/circle_background_beige"
+                android:padding="6dp"
+                android:contentDescription="Edit Interval" />
+        </LinearLayout>
+
+        <!-- Divider -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:layout_marginHorizontal="8dp"
+            android:background="#CCCCCC" />
+
+        <!-- Night break block -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:text="Night Break"
+                    android:textStyle="bold"
+                    android:textSize="14sp"
+                    android:textColor="#1C1C1C"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <TextView
+                    android:id="@+id/nightBreak"
+                    android:text="22:00 - 09:00"
+                    android:textSize="14sp"
+                    android:textColor="#6A7686"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/editNightBreak"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_marginStart="8dp"
+                android:src="@drawable/ic_edit"
+                app:tint="#000000"
+                android:background="@drawable/circle_background_beige"
+                android:padding="6dp"
+                android:contentDescription="Edit Night Break" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

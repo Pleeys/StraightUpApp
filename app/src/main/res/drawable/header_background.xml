@@ -1,0 +1,16 @@
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <!-- Tło kafelka: czyste, lekkie -->
+    <solid android:color="#FFFFFF" />
+
+    <!-- Zaokrąglone rogi -->
+    <corners android:radius="16dp" />
+
+    <!-- Odstępy wewnętrzne -->
+    <padding
+        android:left="8dp"
+        android:top="8dp"
+        android:right="8dp"
+        android:bottom="8dp" />
+</shape>
