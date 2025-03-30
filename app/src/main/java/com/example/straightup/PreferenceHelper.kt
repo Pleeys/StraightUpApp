@@ -80,4 +80,16 @@ object PreferenceHelper {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         return prefs.getInt(KEY_HIGHEST_STREAK, 0)
     }
+
+    private const val KEY_LAST_ALARM_TIME = "last_alarm_time"
+
+    fun saveLastAlarmTime(context: Context, timestamp: Long) {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putLong(KEY_LAST_ALARM_TIME, timestamp).apply()
+    }
+
+    fun getLastAlarmTime(context: Context): Long {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        return prefs.getLong(KEY_LAST_ALARM_TIME, -1L)
+    }
 }

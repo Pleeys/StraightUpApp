@@ -25,15 +25,27 @@
             android:layout_weight="1"
             android:orientation="vertical">
 
+            <!-- "Next Alarm" title -->
             <TextView
                 android:id="@+id/alarmTitle"
                 android:text="Next Alarm"
-                android:textColor="#000000"
                 android:textSize="16sp"
                 android:textStyle="bold"
+                android:textColor="#000000"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
 
+            <!-- Dynamic countdown (e.g. "in 44 min") -->
+            <TextView
+                android:id="@+id/alarmCountdown"
+                android:text="in 45 min"
+                android:textSize="14sp"
+                android:textColor="#6A7686"
+                android:layout_marginTop="4dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <!-- Time (e.g. 12:44) -->
             <TextView
                 android:id="@+id/alarmTime"
                 android:text="12:44"
@@ -44,6 +56,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
 
+            <!-- Period (AM/PM) -->
             <TextView
                 android:id="@+id/alarmPeriod"
                 android:text="PM"

@@ -8,12 +8,16 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.text.InputType
+import android.view.View
 import android.widget.*
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
@@ -22,71 +26,69 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Handle login streak
+        // Save today's login date and update streak
         PreferenceHelper.saveLoginDate(this)
-        val streakText = findViewById<TextView>(R.id.streakText)
-        val currentStreak = PreferenceHelper.getCurrentStreak(this)
-        streakText.text = "$currentStreak days"
+        findViewById<TextView>(R.id.streakText).text = "${PreferenceHelper.getCurrentStreak(this)} days"
 
-        // Load and show nickname
-        val usernameText = findViewById<TextView>(R.id.usernameText)
-        val savedNickname = PreferenceHelper.getNick(this)
-        usernameText.text = savedNickname
+        // Load and display saved nickname
+        findViewById<TextView>(R.id.usernameText).text = PreferenceHelper.getNick(this)
 
-        // Open profile on avatar click
-        val avatar = findViewById<ImageView>(R.id.avatarImage)
-        avatar.setOnClickListener {
-            val intent = Intent(this, ProfileActivity::class.java)
-            startActivity(intent)
+        // Navigate to profile screen when avatar is clicked
+        findViewById<ImageView>(R.id.avatarImage).setOnClickListener {
+            startActivity(Intent(this, ProfileActivity::class.java))
         }
 
-        // Show challenge dialog
-        val addButton: Button = findViewById(R.id.addChallengeButton)
-        addButton.setOnClickListener {
+        // Show dialog to add a new challenge
+        findViewById<Button>(R.id.addChallengeButton).setOnClickListener {
             showAddChallengeDialog()
         }
 
-        // Ask for notification permission (Android 13+)
+        // Request notification permission (Android 13+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 100)
             }
         }
 
-        // Create notification channel (Android 8+)
+        // Create notification channel for reminders (Android 8+)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "Reminder Channel"
-            val descriptionText = "Channel for interval reminders"
-            val importance = NotificationManager.IMPORTANCE_HIGH
-            val channel = NotificationChannel("reminder_channel", name, importance).apply {
-                description = descriptionText
+            val channel = NotificationChannel(
+                "reminder_channel",
+                "Reminder Channel",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Channel for interval reminders"
             }
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
 
-        // Show saved interval
+        // Load and display saved interval
         val interval = PreferenceHelper.getInterval(this)
         findViewById<TextView>(R.id.alarmInterval).text = "$interval minutes"
 
-        // Handle editInterval click
+        // Show interval picker dialog on edit button click
         findViewById<ImageView>(R.id.editInterval).setOnClickListener {
             showIntervalPickerDialog()
         }
 
-        // Start repeating notification
+        // Schedule notification based on interval
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             scheduleRepeatingNotification(interval)
         }
+
+        // Display next alarm time in HH:mm format
+        updateNextAlarmTime(interval)
     }
 
     private fun showAddChallengeDialog() {
         val builder = AlertDialog.Builder(this)
         builder.setTitle("New Challenge")
 
-        val input = EditText(this)
-        input.hint = "Enter challenge name"
-        input.inputType = InputType.TYPE_CLASS_TEXT
+        val input = EditText(this).apply {
+            hint = "Enter challenge name"
+            inputType = InputType.TYPE_CLASS_TEXT
+        }
         builder.setView(input)
 
         builder.setPositiveButton("Add") { dialog, _ ->
@@ -114,6 +116,9 @@ class MainActivity : AppCompatActivity() {
         val intervalMillis = intervalMinutes * 60 * 1000
         val triggerAt = System.currentTimeMillis() + intervalMillis
 
+        // Save the time when alarm is scheduled
+        PreferenceHelper.saveLastAlarmTime(this, System.currentTimeMillis())
+
         alarmManager.setRepeating(
             AlarmManager.RTC_WAKEUP,
             triggerAt,
@@ -138,7 +143,9 @@ class MainActivity : AppCompatActivity() {
         saveButton.setOnClickListener {
             val interval = picker.value
             PreferenceHelper.saveInterval(this, interval)
+            PreferenceHelper.saveLastAlarmTime(this, System.currentTimeMillis())
             findViewById<TextView>(R.id.alarmInterval).text = "$interval minutes"
+            updateNextAlarmTime(interval)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 scheduleRepeatingNotification(interval)
             }
@@ -148,7 +155,23 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    // Handle notification permission result
+    // Update displayed next alarm time based on last alarm timestamp
+    private fun updateNextAlarmTime(interval: Int) {
+        val baseMillis = PreferenceHelper.getLastAlarmTime(this)
+        val baseTime = if (baseMillis > 0) Calendar.getInstance().apply {
+            timeInMillis = baseMillis
+        } else Calendar.getInstance()
+
+        val nextAlarm = baseTime.clone() as Calendar
+        nextAlarm.add(Calendar.MINUTE, interval)
+
+        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+        val formattedTime = timeFormat.format(nextAlarm.time)
+
+        findViewById<TextView>(R.id.alarmTime).text = formattedTime
+        findViewById<TextView>(R.id.alarmPeriod).visibility = View.GONE
+    }
+
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
