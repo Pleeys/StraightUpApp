@@ -1,6 +1,7 @@
 package com.example.straightup
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
 import android.content.Intent
@@ -9,11 +10,15 @@ import android.os.Build
 import android.os.Bundle
 import android.text.InputType
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.*
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -104,30 +109,38 @@ class MainActivity : AppCompatActivity() {
 
         // Begin periodic UI updates using the refresh handler.
         refreshHandler.post(refreshRunnable)
+
+        // Challenge list
+        setupChallengeList()
     }
 
-
     private fun showAddChallengeDialog() {
-        val builder = AlertDialog.Builder(this)
-        builder.setTitle("New Challenge")
+        val dialogView = layoutInflater.inflate(R.layout.add_challenge_dialog, null)
+        val input = dialogView.findViewById<EditText>(R.id.challengeInput)
+        val addButton = dialogView.findViewById<Button>(R.id.addButton)
+        val cancelButton = dialogView.findViewById<Button>(R.id.cancelButton)
 
-        val input = EditText(this).apply {
-            hint = "Enter challenge name"
-            inputType = InputType.TYPE_CLASS_TEXT
-        }
-        builder.setView(input)
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .create()
 
-        builder.setPositiveButton("Add") { dialog, _ ->
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        addButton.setOnClickListener {
             val challengeName = input.text.toString().trim()
-            Toast.makeText(this, "Added: $challengeName", Toast.LENGTH_SHORT).show()
+            if (challengeName.isNotEmpty()) {
+                Toast.makeText(this, "Added: $challengeName", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            } else {
+                Toast.makeText(this, "Please enter a name", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        cancelButton.setOnClickListener {
             dialog.dismiss()
         }
 
-        builder.setNegativeButton("Cancel") { dialog, _ ->
-            dialog.cancel()
-        }
-
-        builder.show()
+        dialog.show()
     }
 
     @RequiresApi(Build.VERSION_CODES.M)
@@ -315,4 +328,45 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         refreshHandler.removeCallbacks(refreshRunnable)
     }
+
+    class ChallengeAdapter(private val challenges: List<Challenge>) :
+        RecyclerView.Adapter<ChallengeAdapter.ViewHolder>() {
+
+        class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+            val title: TextView = itemView.findViewById(R.id.challengeTitle)
+            val progressText: TextView = itemView.findViewById(R.id.progressText)
+            val progressBar: ProgressBar = itemView.findViewById(R.id.challengeProgressBar)
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.challenge_item, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun getItemCount(): Int = challenges.size
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val challenge = challenges[position]
+            holder.title.text = challenge.title
+            holder.progressText.text = "${challenge.current} / ${challenge.total}"
+            holder.progressBar.max = challenge.total
+            holder.progressBar.progress = challenge.current
+        }
+    }
+
+    data class Challenge(val title: String, val current: Int, val total: Int)
+
+    private fun setupChallengeList() {
+        val recyclerView = findViewById<RecyclerView>(R.id.challengesRecyclerView)
+        val challenges = listOf(
+            Challenge("Straighten up during work", 1, 3),
+            Challenge("Drink water", 2, 3),
+            Challenge("Take breaks", 0, 3),
+        )
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.adapter = ChallengeAdapter(challenges)
+    }
+
+
 }
