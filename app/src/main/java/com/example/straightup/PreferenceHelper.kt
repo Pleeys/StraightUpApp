@@ -93,4 +93,26 @@ object PreferenceHelper {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         return prefs.getLong(KEY_LAST_ALARM_TIME, -1L)
     }
+
+    private const val KEY_NIGHT_BREAK_START = "night_break_start"
+    private const val KEY_NIGHT_BREAK_END = "night_break_end"
+
+    fun saveNightBreakStart(context: Context, time: String) {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putString(KEY_NIGHT_BREAK_START, time).apply()
+    }
+
+    fun saveNightBreakEnd(context: Context, time: String) {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putString(KEY_NIGHT_BREAK_END, time).apply()
+    }
+
+    fun getNightBreakStart(context: Context): String =
+        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_NIGHT_BREAK_START, "22:00") ?: "22:00"
+
+    fun getNightBreakEnd(context: Context): String =
+        context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_NIGHT_BREAK_END, "09:00") ?: "09:00"
+
 }
