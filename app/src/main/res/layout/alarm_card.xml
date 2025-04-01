@@ -38,12 +38,13 @@
             <!-- Dynamic countdown (e.g. "in 44 min") -->
             <TextView
                 android:id="@+id/alarmCountdown"
-                android:text="in 45 min"
+                android:text="no alarm set"
                 android:textSize="14sp"
                 android:textColor="#6A7686"
                 android:layout_marginTop="4dp"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
+
 
             <!-- Time (e.g. 12:44) -->
             <TextView

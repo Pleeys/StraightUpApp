@@ -82,6 +82,8 @@ class MainActivity : AppCompatActivity() {
         findViewById<ImageView>(R.id.editNightBreak).setOnClickListener {
             showNightBreakPickerDialog()
         }
+
+        refreshHandler.post(refreshRunnable)
     }
 
     private fun showAddChallengeDialog() {
@@ -197,6 +199,10 @@ class MainActivity : AppCompatActivity() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 scheduleRepeatingNotification(interval)
             }
+
+            refreshHandler.removeCallbacks(refreshRunnable)
+            refreshHandler.post(refreshRunnable)
+
             dialog.dismiss()
         }
 
@@ -255,6 +261,19 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<TextView>(R.id.alarmTime).text = formattedTime
         findViewById<TextView>(R.id.alarmPeriod).visibility = View.GONE
+
+        val now = Calendar.getInstance().timeInMillis
+        val diffMillis = nextAlarm.timeInMillis - now
+        val minutesUntilAlarm = (diffMillis / 60000).toInt()
+
+        val countdownText = when {
+            minutesUntilAlarm < 1 -> "less than a minute"
+            minutesUntilAlarm == 1 -> "in 1 minute"
+            else -> "in $minutesUntilAlarm minutes"
+        }
+
+        findViewById<TextView>(R.id.alarmCountdown).text = countdownText
+
     }
 
     override fun onRequestPermissionsResult(
@@ -266,6 +285,17 @@ class MainActivity : AppCompatActivity() {
 
         if (requestCode == 100 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             Toast.makeText(this, "Notifications enabled", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private val refreshHandler = android.os.Handler()
+    private val refreshRunnable = object : Runnable {
+        override fun run() {
+            val interval = PreferenceHelper.getInterval(this@MainActivity)
+            if (interval > 0) {
+                updateNextAlarmTime(interval)
+            }
+            refreshHandler.postDelayed(this, 60_000)
         }
     }
 }
