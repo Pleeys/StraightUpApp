@@ -187,6 +187,8 @@ class MainActivity : AppCompatActivity() {
             .setView(dialogView)
             .create()
 
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
         saveButton.setOnClickListener {
             val interval = picker.value
             PreferenceHelper.saveInterval(this, interval)
@@ -214,6 +216,8 @@ class MainActivity : AppCompatActivity() {
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
             .create()
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         saveButton.setOnClickListener {
             val start = String.format("%02d:%02d", startPicker.hour, startPicker.minute)
