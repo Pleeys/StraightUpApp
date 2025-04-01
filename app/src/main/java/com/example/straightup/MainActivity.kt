@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.text.InputType
+import android.util.Log
 import android.view.View
 import android.widget.*
 import androidx.annotation.RequiresApi
@@ -16,39 +17,54 @@ import androidx.appcompat.app.AppCompatActivity
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import java.util.TimeZone
 
 class MainActivity : AppCompatActivity() {
+
+    private val refreshHandler = android.os.Handler()
+    private val refreshRunnable = object : Runnable {
+        override fun run() {
+            val interval = PreferenceHelper.getInterval(this@MainActivity)
+            if (interval > 0) {
+                updateNextAlarmTime(interval)
+            }
+            refreshHandler.postDelayed(this, 60_000)
+        }
+    }
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Save today's login date and update streak
+        // Save the current login date and update the user's streak.
         PreferenceHelper.saveLoginDate(this)
         findViewById<TextView>(R.id.streakText).text = "${PreferenceHelper.getCurrentStreak(this)} days"
-
-        // Load and display saved nickname
         findViewById<TextView>(R.id.usernameText).text = PreferenceHelper.getNick(this)
 
-        // Navigate to profile screen when avatar is clicked
+        val nightBreakStart = PreferenceHelper.getNightBreakStart(this)
+        val nightBreakEnd = PreferenceHelper.getNightBreakEnd(this)
+        findViewById<TextView>(R.id.nightBreak).text = "$nightBreakStart - $nightBreakEnd"
+
+
+        // Navigate to the ProfileActivity when the avatar is clicked.
         findViewById<ImageView>(R.id.avatarImage).setOnClickListener {
             startActivity(Intent(this, ProfileActivity::class.java))
         }
 
-        // Show dialog to add a new challenge
+        // Show the dialog to add a new challenge.
         findViewById<Button>(R.id.addChallengeButton).setOnClickListener {
             showAddChallengeDialog()
         }
 
-        // Request notification permission (Android 13+)
+        // Request POST_NOTIFICATIONS permission on devices running Android Tiramisu (API 33) or higher.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 100)
             }
         }
 
-        // Create notification channel for reminders (Android 8+)
+        // Create a notification channel for reminder notifications (required on Android Oreo/API 26 and above).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 "reminder_channel",
@@ -61,9 +77,11 @@ class MainActivity : AppCompatActivity() {
             notificationManager.createNotificationChannel(channel)
         }
 
+        // Retrieve the saved alarm interval from preferences and update the UI.
         val interval = PreferenceHelper.getInterval(this)
         findViewById<TextView>(R.id.alarmInterval).text = "$interval minutes"
 
+        // Update the alarm time and countdown display based on the interval.
         if (interval == 0) {
             findViewById<TextView>(R.id.alarmTime).text = "--:--"
             findViewById<TextView>(R.id.alarmCountdown).text = "No alarm set"
@@ -71,20 +89,23 @@ class MainActivity : AppCompatActivity() {
             updateNextAlarmTime(interval)
         }
 
+        // Refresh the alarm time display if an interval is set.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && interval > 0) {
             updateNextAlarmTime(interval)
         }
 
+        // Set up click listeners for editing the alarm interval and the night break settings.
         findViewById<ImageView>(R.id.editInterval).setOnClickListener {
             showIntervalPickerDialog()
         }
-
         findViewById<ImageView>(R.id.editNightBreak).setOnClickListener {
             showNightBreakPickerDialog()
         }
 
+        // Begin periodic UI updates using the refresh handler.
         refreshHandler.post(refreshRunnable)
     }
+
 
     private fun showAddChallengeDialog() {
         val builder = AlertDialog.Builder(this)
@@ -113,13 +134,14 @@ class MainActivity : AppCompatActivity() {
     private fun scheduleRepeatingNotification(intervalMinutes: Int) {
         val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
         val intent = Intent(this, AlarmReceiver::class.java)
+
+        // Anulowanie poprzedniego alarmu, jeśli istnieje
         val pendingIntent = PendingIntent.getBroadcast(
             this, 0, intent,
-            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_NO_CREATE
         )
-
         if (pendingIntent != null) {
-            return
+            alarmManager.cancel(pendingIntent)
         }
 
         val actualPendingIntent = PendingIntent.getBroadcast(
@@ -128,9 +150,10 @@ class MainActivity : AppCompatActivity() {
         )
 
         val intervalMillis = intervalMinutes * 60 * 1000L
-        val cal = Calendar.getInstance()
-        cal.timeInMillis = System.currentTimeMillis() + intervalMillis
+        val now = System.currentTimeMillis()
+        var triggerAt = now + intervalMillis
 
+        // Obsługa przerwy nocnej (night break)
         val nightStart = PreferenceHelper.getNightBreakStart(this)
         val nightEnd = PreferenceHelper.getNightBreakEnd(this)
 
@@ -145,6 +168,7 @@ class MainActivity : AppCompatActivity() {
             val current = hour * 60 + minute
             val start = startH * 60 + startM
             val end = endH * 60 + endM
+            // Obsługa sytuacji, gdy przedział nocny przechodzi przez północ
             return if (start < end) {
                 current in start until end
             } else {
@@ -152,20 +176,24 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        val cal = Calendar.getInstance().apply { timeInMillis = triggerAt }
         val triggerHour = cal.get(Calendar.HOUR_OF_DAY)
         val triggerMinute = cal.get(Calendar.MINUTE)
 
         if (isInNightBreak(triggerHour, triggerMinute)) {
+            // Jeśli alarm przypada w czasie przerwy nocnej, ustaw go na koniec przerwy
             val (endH, endM) = parseHourMinute(nightEnd)
             cal.set(Calendar.HOUR_OF_DAY, endH)
             cal.set(Calendar.MINUTE, endM)
             cal.set(Calendar.SECOND, 0)
-            if (cal.timeInMillis < System.currentTimeMillis()) {
+            // Jeśli wyliczony czas już minął, dodajemy jeden dzień
+            if (cal.timeInMillis < now) {
                 cal.add(Calendar.DAY_OF_YEAR, 1)
             }
+            triggerAt = cal.timeInMillis
         }
 
-        val triggerAt = cal.timeInMillis
+        // Zapisujemy nowy czas alarmu – można też usunąć tę linię, jeśli nie chcesz korzystać z poprzedniego zapisu
         PreferenceHelper.saveLastAlarmTime(this, triggerAt)
 
         alarmManager.setRepeating(
@@ -175,6 +203,7 @@ class MainActivity : AppCompatActivity() {
             actualPendingIntent
         )
     }
+
 
     private fun showIntervalPickerDialog() {
         val dialogView = layoutInflater.inflate(R.layout.interval_picker_dialog, null)
@@ -195,10 +224,13 @@ class MainActivity : AppCompatActivity() {
             val interval = picker.value
             PreferenceHelper.saveInterval(this, interval)
             findViewById<TextView>(R.id.alarmInterval).text = "$interval minutes"
-            updateNextAlarmTime(interval)
+
+            cancelExistingAlarm()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 scheduleRepeatingNotification(interval)
             }
+
+            updateNextAlarmTime(interval)
 
             refreshHandler.removeCallbacks(refreshRunnable)
             refreshHandler.post(refreshRunnable)
@@ -243,20 +275,12 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-
     private fun updateNextAlarmTime(interval: Int) {
         val savedTriggerTime = PreferenceHelper.getLastAlarmTime(this)
-        val nextAlarm = if (savedTriggerTime > 0) {
-            val now = System.currentTimeMillis()
-            val elapsed = now - savedTriggerTime
-            val intervalsPassed = (elapsed / (interval * 60 * 1000)).toInt()
-            val next = savedTriggerTime + ((intervalsPassed + 1) * interval * 60 * 1000)
-            Calendar.getInstance().apply { timeInMillis = next }
-        } else {
-            Calendar.getInstance().apply { add(Calendar.MINUTE, interval) }
-        }
+        val nextAlarm = Calendar.getInstance().apply { timeInMillis = savedTriggerTime }
 
         val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+        timeFormat.timeZone = TimeZone.getDefault()
         val formattedTime = timeFormat.format(nextAlarm.time)
 
         findViewById<TextView>(R.id.alarmTime).text = formattedTime
@@ -273,29 +297,22 @@ class MainActivity : AppCompatActivity() {
         }
 
         findViewById<TextView>(R.id.alarmCountdown).text = countdownText
-
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        if (requestCode == 100 && grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            Toast.makeText(this, "Notifications enabled", Toast.LENGTH_SHORT).show()
+    private fun cancelExistingAlarm() {
+        val intent = Intent(this, AlarmReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            this, 0, intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_NO_CREATE
+        )
+        if (pendingIntent != null) {
+            val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+            alarmManager.cancel(pendingIntent)
         }
     }
 
-    private val refreshHandler = android.os.Handler()
-    private val refreshRunnable = object : Runnable {
-        override fun run() {
-            val interval = PreferenceHelper.getInterval(this@MainActivity)
-            if (interval > 0) {
-                updateNextAlarmTime(interval)
-            }
-            refreshHandler.postDelayed(this, 60_000)
-        }
+    override fun onDestroy() {
+        super.onDestroy()
+        refreshHandler.removeCallbacks(refreshRunnable)
     }
 }

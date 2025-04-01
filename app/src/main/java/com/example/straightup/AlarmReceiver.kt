@@ -12,35 +12,35 @@ import java.util.Calendar
 
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val nightStart = PreferenceHelper.getNightBreakStart(context)
-        val nightEnd = PreferenceHelper.getNightBreakEnd(context)
+        // Pobierz ustawione czasy przerwy nocnej z preferencji
+        val nightStart = PreferenceHelper.getNightBreakStart(context)  // np. "22:00"
+        val nightEnd = PreferenceHelper.getNightBreakEnd(context)      // np. "09:00"
 
-        val calendar = Calendar.getInstance()
-        val currentHour = calendar.get(Calendar.HOUR_OF_DAY)
-        val currentMinute = calendar.get(Calendar.MINUTE)
+        // Zamiana ustawionych czasów na minuty od północy
+        val startParts = nightStart.split(":").map { it.toInt() }
+        val endParts = nightEnd.split(":").map { it.toInt() }
+        val startMinutes = startParts[0] * 60 + startParts[1]
+        val endMinutes = endParts[0] * 60 + endParts[1]
 
-        fun parseHourMinute(time: String): Pair<Int, Int> {
-            val parts = time.split(":")
-            return Pair(parts[0].toInt(), parts[1].toInt())
+        // Pobierz aktualny czas
+        val now = Calendar.getInstance()
+        val currentMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+
+        // Sprawdź, czy jesteśmy w przerwie nocnej
+        val inNightBreak = if (startMinutes < endMinutes) {
+            // Przypadek, gdy przerwa nocna nie przechodzi przez północ (np. 23:00 - 07:00)
+            currentMinutes in startMinutes until endMinutes
+        } else {
+            // Przypadek, gdy przerwa nocna przechodzi przez północ (np. 22:00 - 09:00)
+            currentMinutes >= startMinutes || currentMinutes < endMinutes
         }
 
-        fun isInNightBreak(hour: Int, minute: Int): Boolean {
-            val (startH, startM) = parseHourMinute(nightStart)
-            val (endH, endM) = parseHourMinute(nightEnd)
-            val current = hour * 60 + minute
-            val start = startH * 60 + startM
-            val end = endH * 60 + endM
-            return if (start < end) {
-                current in start until end
-            } else {
-                current >= start || current < end
-            }
+        if (inNightBreak) {
+            // W przerwie nocnej nie wysyłamy powiadomień
+            return
         }
 
-        if (isInNightBreak(currentHour, currentMinute)) {
-            return // 🔕 NIE pokazujemy powiadomienia
-        }
-
+        // Jeżeli nie jesteśmy w przerwie nocnej – wyświetl powiadomienie
         val notification = NotificationCompat.Builder(context, "reminder_channel")
             .setContentTitle("Time to take a break")
             .setContentText("Stay on track with your goals.")
@@ -55,4 +55,5 @@ class AlarmReceiver : BroadcastReceiver() {
         manager.notify(1001, notification)
     }
 }
+
 

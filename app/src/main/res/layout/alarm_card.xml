@@ -111,7 +111,7 @@
 
                 <TextView
                     android:id="@+id/alarmInterval"
-                    android:text="50 minutes"
+                    android:text="Set Notifications!"
                     android:textSize="14sp"
                     android:textColor="#6A7686"
                     android:layout_width="wrap_content"
@@ -161,7 +161,7 @@
 
                 <TextView
                     android:id="@+id/nightBreak"
-                    android:text="22:00 - 09:00"
+                    android:text="Set night break!"
                     android:textSize="14sp"
                     android:textColor="#6A7686"
                     android:layout_width="wrap_content"
