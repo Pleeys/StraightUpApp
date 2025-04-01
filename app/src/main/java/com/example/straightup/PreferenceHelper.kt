@@ -2,6 +2,7 @@ package com.example.straightup
 
 import android.content.Context
 import android.os.Build
+import android.preference.PreferenceManager
 import androidx.annotation.RequiresApi
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -36,7 +37,7 @@ object PreferenceHelper {
 
     fun getInterval(context: Context): Int {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        return prefs.getInt(KEY_INTERVAL, 45) // default 45 minutes
+        return prefs.getInt(KEY_INTERVAL, 0)
     }
 
     // Streaks

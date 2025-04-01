@@ -13,8 +13,6 @@ import android.widget.*
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.app.NotificationManagerCompat
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -63,22 +61,30 @@ class MainActivity : AppCompatActivity() {
             notificationManager.createNotificationChannel(channel)
         }
 
-        // Load and display saved interval
+    // Load and display saved interval
         val interval = PreferenceHelper.getInterval(this)
         findViewById<TextView>(R.id.alarmInterval).text = "$interval minutes"
 
-        // Show interval picker dialog on edit button click
+    // Jeśli interwał nieustawiony – pokaż placeholdery
+        if (interval == 0) {
+            findViewById<TextView>(R.id.alarmTime).text = "--:--"
+            findViewById<TextView>(R.id.alarmCountdown).text = "No alarm set"
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Jeśli ustawiony, pokaż normalnie
+            updateNextAlarmTime(interval)
+        }
+
+
+    // Jeśli użytkownik wcześniej ustawił interwał > 0, ustaw alarm i pokaż czas
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && interval > 0) {
+            updateNextAlarmTime(interval)
+        }
+
+    // Show interval picker dialog on edit button click
         findViewById<ImageView>(R.id.editInterval).setOnClickListener {
             showIntervalPickerDialog()
         }
 
-        // Schedule notification based on interval
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            scheduleRepeatingNotification(interval)
-        }
-
-        // Display next alarm time in HH:mm format
-        updateNextAlarmTime(interval)
     }
 
     private fun showAddChallengeDialog() {
@@ -110,20 +116,29 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(this, AlarmReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(
             this, 0, intent,
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        // Jeśli pendingIntent już istnieje, nie ustawiamy alarmu ponownie
+        if (pendingIntent != null) {
+            return
+        }
+
+        val actualPendingIntent = PendingIntent.getBroadcast(
+            this, 0, intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
         val intervalMillis = intervalMinutes * 60 * 1000
         val triggerAt = System.currentTimeMillis() + intervalMillis
 
-        // Save the time when alarm is scheduled
-        PreferenceHelper.saveLastAlarmTime(this, System.currentTimeMillis())
+        PreferenceHelper.saveLastAlarmTime(this, triggerAt)
 
         alarmManager.setRepeating(
             AlarmManager.RTC_WAKEUP,
             triggerAt,
             intervalMillis.toLong(),
-            pendingIntent
+            actualPendingIntent
         )
     }
 
@@ -143,7 +158,6 @@ class MainActivity : AppCompatActivity() {
         saveButton.setOnClickListener {
             val interval = picker.value
             PreferenceHelper.saveInterval(this, interval)
-            PreferenceHelper.saveLastAlarmTime(this, System.currentTimeMillis())
             findViewById<TextView>(R.id.alarmInterval).text = "$interval minutes"
             updateNextAlarmTime(interval)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -155,15 +169,19 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
-    // Update displayed next alarm time based on last alarm timestamp
+    // Update displayed next alarm time
     private fun updateNextAlarmTime(interval: Int) {
-        val baseMillis = PreferenceHelper.getLastAlarmTime(this)
-        val baseTime = if (baseMillis > 0) Calendar.getInstance().apply {
-            timeInMillis = baseMillis
-        } else Calendar.getInstance()
+        val savedTriggerTime = PreferenceHelper.getLastAlarmTime(this)
 
-        val nextAlarm = baseTime.clone() as Calendar
-        nextAlarm.add(Calendar.MINUTE, interval)
+        val nextAlarm = if (savedTriggerTime > 0) {
+            val now = System.currentTimeMillis()
+            val elapsed = now - savedTriggerTime
+            val intervalsPassed = (elapsed / (interval * 60 * 1000)).toInt()
+            val next = savedTriggerTime + ((intervalsPassed + 1) * interval * 60 * 1000)
+            Calendar.getInstance().apply { timeInMillis = next }
+        } else {
+            Calendar.getInstance().apply { add(Calendar.MINUTE, interval) }
+        }
 
         val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
         val formattedTime = timeFormat.format(nextAlarm.time)
@@ -172,6 +190,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.alarmPeriod).visibility = View.GONE
     }
 
+    // Handle permission result callback
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
