@@ -81,6 +81,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        challenges.addAll(ChallengeStorage.loadChallenges(this))
+
         PreferenceHelper.saveLoginDate(this)
         findViewById<TextView>(R.id.streakText).text = "${PreferenceHelper.getCurrentStreak(this)} days"
         findViewById<TextView>(R.id.usernameText).text = PreferenceHelper.getNick(this)
@@ -138,6 +140,9 @@ class MainActivity : AppCompatActivity() {
         refreshHandler.post(refreshRunnable)
 
         setupChallengeList()
+
+        updateChallengeCount()
+
     }
 
     private fun showIntervalPickerDialog() {
@@ -230,6 +235,8 @@ class MainActivity : AppCompatActivity() {
 
             val challenge = Challenge(title = name, priority = selectedPriority!!)
             onChallengeAdded(challenge)
+            ChallengeStorage.saveChallenges(this, challenges)
+            updateChallengeCount()
             dialog.dismiss()
         }
 
@@ -272,6 +279,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupChallengeList() {
         val recyclerView = findViewById<RecyclerView>(R.id.challengesRecyclerView)
+
+        challenges.clear()
+        challenges.addAll(ChallengeStorage.loadChallenges(this))
+
         challengeAdapter = ChallengeAdapter(challenges)
         recyclerView.layoutManager = LinearLayoutManager(this)
         recyclerView.adapter = challengeAdapter
@@ -305,4 +316,16 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         refreshHandler.removeCallbacks(refreshRunnable)
     }
+
+    private fun updateChallengeCount() {
+        val count = challenges.size
+        if(count == 0){
+            findViewById<TextView>(R.id.challengeCount).text = "Add new challenges!"
+        }
+        else {
+            findViewById<TextView>(R.id.challengeCount).text = "Challenges ($count)"
+        }
+    }
+
+
 }
