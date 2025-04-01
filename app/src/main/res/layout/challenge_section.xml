@@ -1,40 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="16dp">
+    android:orientation="vertical"
+    android:layout_margin="16dp"
+    android:background="@drawable/header_background_rounded"
+    android:elevation="4dp">
 
-    <!-- Nagłówek sekcji + licznik + przycisk -->
+    <!-- Header section with title and Add button -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:background="#D9EDF9"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginBottom="12dp">
+        android:minHeight="72dp">
 
+        <!-- Challenges title with task count -->
         <TextView
             android:id="@+id/challengesTitle"
             android:text="Challenges (3 tasks)"
             android:textSize="18sp"
-            android:textColor="#1C1C1C"
             android:textStyle="bold"
+            android:textColor="#000000"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1" />
 
+        <!-- Rounded Add button -->
         <Button
             android:id="@+id/addChallengeButton"
-            android:text="+ Add"
+            android:text="+ ADD"
             android:textSize="14sp"
+            android:minHeight="48dp"
+            android:minWidth="88dp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:backgroundTint="#3D5AFE"
-            android:textColor="#FFFFFF" />
+            android:background="@drawable/rounded_button"
+            android:textColor="#000000"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp"
+            android:elevation="2dp"
+            android:layout_marginBottom="2dp" />
     </LinearLayout>
 
-    <!-- Lista wyzwań -->
-    <include layout="@layout/challenge_item" />
-    <include layout="@layout/challenge_item" />
-    <include layout="@layout/challenge_item" />
+    <!-- Challenge list section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#FFFFFF"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Individual challenge items -->
+        <include layout="@layout/challenge_item" />
+        <include layout="@layout/challenge_item" />
+        <include layout="@layout/challenge_item" />
+
+    </LinearLayout>
 </LinearLayout>
