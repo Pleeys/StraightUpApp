@@ -1,62 +1,155 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:padding="24dp"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/header_background_rounded">
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/dialog_background"
+    android:gravity="center_horizontal">
 
-    <!-- Dialog title -->
+    <!-- Title -->
     <TextView
-        android:text="New Challenge"
-        android:textSize="26sp"
+        android:text="Create\nChallenge"
+        android:textSize="24sp"
         android:textStyle="bold"
         android:textColor="#1C355E"
         android:gravity="center"
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
 
-    <!-- Input field for challenge name -->
+    <!-- Description -->
+    <TextView
+        android:text="Be specific and create a goal that’s easy to reach short-term.\nE.g. Walk 15min, Meditate 10min..."
+        android:textSize="14sp"
+        android:textColor="#FFFFFF"
+        android:gravity="center"
+        android:layout_marginTop="12dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <!-- Input -->
     <EditText
-        android:id="@+id/challengeInput"
-        android:hint="Enter challenge name"
-        android:textSize="20sp"
+        android:id="@+id/inputChallenge"
+        android:hint="Add your challenge!"
+        android:background="@drawable/input_background"
+        android:padding="12dp"
+        android:textColor="#000000"
+        android:textColorHint="#999999"
         android:layout_marginTop="16dp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:backgroundTint="#000000" />
+        android:textAlignment="center"/>
 
-    <!-- Buttons -->
+    <!-- Counter -->
+    <TextView
+        android:id="@+id/charCounter"
+        android:text="0/50"
+        android:textColor="#1C355E"
+        android:layout_gravity="end"
+        android:layout_marginTop="4dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <!-- Priority section -->
+    <TextView
+        android:text="Select Priority"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#1C355E"
+        android:layout_marginTop="24dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
     <LinearLayout
+        android:id="@+id/prioritySelector"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
         android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_gravity="center_horizontal">
+
+        <FrameLayout
+            android:id="@+id/priorityLow"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="16dp"
+            android:clickable="true"
+            android:foreground="?attr/selectableItemBackgroundBorderless"
+            android:background="@android:color/transparent">
+
+            <ImageView
+                android:id="@+id/priorityLowCircle"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/circle_green" />
+
+            <ImageView
+                android:id="@+id/priorityLowSelected"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_gravity="center"
+                android:src="@drawable/priority_circle_selected_overlay"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/priorityMedium"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginEnd="16dp"
+            android:clickable="true"
+            android:foreground="?attr/selectableItemBackgroundBorderless"
+            android:background="@android:color/transparent">
+
+            <ImageView
+                android:id="@+id/priorityMediumCircle"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/circle_orange" />
+
+            <ImageView
+                android:id="@+id/priorityMediumSelected"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_gravity="center"
+                android:src="@drawable/priority_circle_selected_overlay"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/priorityHigh"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:clickable="true"
+            android:foreground="?attr/selectableItemBackgroundBorderless"
+            android:background="@android:color/transparent">
+
+            <ImageView
+                android:id="@+id/priorityHighCircle"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/circle_red" />
+
+            <ImageView
+                android:id="@+id/priorityHighSelected"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_gravity="center"
+                android:src="@drawable/priority_circle_selected_overlay"
+                android:visibility="gone" />
+        </FrameLayout>
+    </LinearLayout>
+
+
+    <!-- Save button -->
+    <Button
+        android:id="@+id/saveChallengeButton"
+        android:text="Save"
+        android:layout_marginTop="32dp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_horizontal"
-        android:layout_marginTop="24dp">
-
-        <!-- Cancel -->
-        <Button
-            android:id="@+id/cancelButton"
-            android:text="Cancel"
-            android:textAllCaps="false"
-            android:textSize="18sp"
-            android:textColor="#000000"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:background="@drawable/rounded_button"
-            android:layout_marginEnd="12dp"
-            android:layout_marginBottom="2dp" />
-
-        <!-- Add -->
-        <Button
-            android:id="@+id/addButton"
-            android:text="Add"
-            android:textAllCaps="false"
-            android:textSize="18sp"
-            android:textColor="#000000"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:background="@drawable/rounded_button"
-            android:layout_marginBottom="2dp" />
-    </LinearLayout>
+        android:background="@drawable/rounded_button"
+        android:textColor="#000000"
+        android:textAllCaps="false" />
 </LinearLayout>

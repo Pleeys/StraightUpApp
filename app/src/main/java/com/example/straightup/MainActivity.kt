@@ -1,15 +1,14 @@
 package com.example.straightup
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.*
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.text.InputType
-import android.util.Log
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -20,11 +19,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
-import java.util.TimeZone
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
+
+    private lateinit var challengeAdapter: ChallengeAdapter
+    private val challenges = mutableListOf<Challenge>()
 
     private val refreshHandler = android.os.Handler()
     private val refreshRunnable = object : Runnable {
@@ -37,12 +37,50 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    enum class Priority {
+        LOW, MEDIUM, HIGH
+    }
+
+    data class Challenge(val title: String, val current: Int = 0, val total: Int = 3, val priority: Priority)
+
+    class ChallengeAdapter(private val challenges: List<Challenge>) :
+        RecyclerView.Adapter<ChallengeAdapter.ViewHolder>() {
+
+        class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+            val title: TextView = itemView.findViewById(R.id.challengeTitle)
+            val progressText: TextView = itemView.findViewById(R.id.progressText)
+            val progressBar: ProgressBar = itemView.findViewById(R.id.challengeProgressBar)
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = LayoutInflater.from(parent.context)
+                .inflate(R.layout.challenge_item, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun getItemCount(): Int = challenges.size
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            val challenge = challenges[position]
+            holder.title.text = challenge.title
+            holder.progressText.text = "${challenge.current} / ${challenge.total}"
+            holder.progressBar.max = challenge.total
+            holder.progressBar.progress = challenge.current
+
+            val bg = when (challenge.priority) {
+                Priority.LOW -> R.drawable.challenge_item_low
+                Priority.MEDIUM -> R.drawable.challenge_item_medium
+                Priority.HIGH -> R.drawable.challenge_item_high
+            }
+            holder.itemView.setBackgroundResource(bg)
+        }
+    }
+
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // Save the current login date and update the user's streak.
         PreferenceHelper.saveLoginDate(this)
         findViewById<TextView>(R.id.streakText).text = "${PreferenceHelper.getCurrentStreak(this)} days"
         findViewById<TextView>(R.id.usernameText).text = PreferenceHelper.getNick(this)
@@ -51,25 +89,23 @@ class MainActivity : AppCompatActivity() {
         val nightBreakEnd = PreferenceHelper.getNightBreakEnd(this)
         findViewById<TextView>(R.id.nightBreak).text = "$nightBreakStart - $nightBreakEnd"
 
-
-        // Navigate to the ProfileActivity when the avatar is clicked.
         findViewById<ImageView>(R.id.avatarImage).setOnClickListener {
             startActivity(Intent(this, ProfileActivity::class.java))
         }
 
-        // Show the dialog to add a new challenge.
         findViewById<Button>(R.id.addChallengeButton).setOnClickListener {
-            showAddChallengeDialog()
+            showAddChallengeDialog { newChallenge ->
+                challenges.add(newChallenge)
+                challengeAdapter.notifyItemInserted(challenges.size - 1)
+            }
         }
 
-        // Request POST_NOTIFICATIONS permission on devices running Android Tiramisu (API 33) or higher.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 100)
             }
         }
 
-        // Create a notification channel for reminder notifications (required on Android Oreo/API 26 and above).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 "reminder_channel",
@@ -82,11 +118,9 @@ class MainActivity : AppCompatActivity() {
             notificationManager.createNotificationChannel(channel)
         }
 
-        // Retrieve the saved alarm interval from preferences and update the UI.
         val interval = PreferenceHelper.getInterval(this)
         findViewById<TextView>(R.id.alarmInterval).text = "$interval minutes"
 
-        // Update the alarm time and countdown display based on the interval.
         if (interval == 0) {
             findViewById<TextView>(R.id.alarmTime).text = "--:--"
             findViewById<TextView>(R.id.alarmCountdown).text = "No alarm set"
@@ -94,12 +128,6 @@ class MainActivity : AppCompatActivity() {
             updateNextAlarmTime(interval)
         }
 
-        // Refresh the alarm time display if an interval is set.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && interval > 0) {
-            updateNextAlarmTime(interval)
-        }
-
-        // Set up click listeners for editing the alarm interval and the night break settings.
         findViewById<ImageView>(R.id.editInterval).setOnClickListener {
             showIntervalPickerDialog()
         }
@@ -107,121 +135,16 @@ class MainActivity : AppCompatActivity() {
             showNightBreakPickerDialog()
         }
 
-        // Begin periodic UI updates using the refresh handler.
         refreshHandler.post(refreshRunnable)
 
-        // Challenge list
         setupChallengeList()
     }
-
-    private fun showAddChallengeDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.add_challenge_dialog, null)
-        val input = dialogView.findViewById<EditText>(R.id.challengeInput)
-        val addButton = dialogView.findViewById<Button>(R.id.addButton)
-        val cancelButton = dialogView.findViewById<Button>(R.id.cancelButton)
-
-        val dialog = AlertDialog.Builder(this)
-            .setView(dialogView)
-            .create()
-
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        addButton.setOnClickListener {
-            val challengeName = input.text.toString().trim()
-            if (challengeName.isNotEmpty()) {
-                Toast.makeText(this, "Added: $challengeName", Toast.LENGTH_SHORT).show()
-                dialog.dismiss()
-            } else {
-                Toast.makeText(this, "Please enter a name", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        cancelButton.setOnClickListener {
-            dialog.dismiss()
-        }
-
-        dialog.show()
-    }
-
-    @RequiresApi(Build.VERSION_CODES.M)
-    private fun scheduleRepeatingNotification(intervalMinutes: Int) {
-        val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
-        val intent = Intent(this, AlarmReceiver::class.java)
-
-        // Anulowanie poprzedniego alarmu, jeśli istnieje
-        val pendingIntent = PendingIntent.getBroadcast(
-            this, 0, intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_NO_CREATE
-        )
-        if (pendingIntent != null) {
-            alarmManager.cancel(pendingIntent)
-        }
-
-        val actualPendingIntent = PendingIntent.getBroadcast(
-            this, 0, intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        val intervalMillis = intervalMinutes * 60 * 1000L
-        val now = System.currentTimeMillis()
-        var triggerAt = now + intervalMillis
-
-        // Obsługa przerwy nocnej (night break)
-        val nightStart = PreferenceHelper.getNightBreakStart(this)
-        val nightEnd = PreferenceHelper.getNightBreakEnd(this)
-
-        fun parseHourMinute(time: String): Pair<Int, Int> {
-            val parts = time.split(":")
-            return Pair(parts[0].toInt(), parts[1].toInt())
-        }
-
-        fun isInNightBreak(hour: Int, minute: Int): Boolean {
-            val (startH, startM) = parseHourMinute(nightStart)
-            val (endH, endM) = parseHourMinute(nightEnd)
-            val current = hour * 60 + minute
-            val start = startH * 60 + startM
-            val end = endH * 60 + endM
-            // Obsługa sytuacji, gdy przedział nocny przechodzi przez północ
-            return if (start < end) {
-                current in start until end
-            } else {
-                current >= start || current < end
-            }
-        }
-
-        val cal = Calendar.getInstance().apply { timeInMillis = triggerAt }
-        val triggerHour = cal.get(Calendar.HOUR_OF_DAY)
-        val triggerMinute = cal.get(Calendar.MINUTE)
-
-        if (isInNightBreak(triggerHour, triggerMinute)) {
-            // Jeśli alarm przypada w czasie przerwy nocnej, ustaw go na koniec przerwy
-            val (endH, endM) = parseHourMinute(nightEnd)
-            cal.set(Calendar.HOUR_OF_DAY, endH)
-            cal.set(Calendar.MINUTE, endM)
-            cal.set(Calendar.SECOND, 0)
-            // Jeśli wyliczony czas już minął, dodajemy jeden dzień
-            if (cal.timeInMillis < now) {
-                cal.add(Calendar.DAY_OF_YEAR, 1)
-            }
-            triggerAt = cal.timeInMillis
-        }
-
-        // Zapisujemy nowy czas alarmu – można też usunąć tę linię, jeśli nie chcesz korzystać z poprzedniego zapisu
-        PreferenceHelper.saveLastAlarmTime(this, triggerAt)
-
-        alarmManager.setRepeating(
-            AlarmManager.RTC_WAKEUP,
-            triggerAt,
-            intervalMillis,
-            actualPendingIntent
-        )
-    }
-
 
     private fun showIntervalPickerDialog() {
         val dialogView = layoutInflater.inflate(R.layout.interval_picker_dialog, null)
         val picker = dialogView.findViewById<NumberPicker>(R.id.intervalPicker)
         val saveButton = dialogView.findViewById<Button>(R.id.saveIntervalButton)
+        val cancelButton = dialogView.findViewById<Button>(R.id.cancelIntervalButton)
 
         picker.minValue = 5
         picker.maxValue = 120
@@ -237,17 +160,76 @@ class MainActivity : AppCompatActivity() {
             val interval = picker.value
             PreferenceHelper.saveInterval(this, interval)
             findViewById<TextView>(R.id.alarmInterval).text = "$interval minutes"
+            updateNextAlarmTime(interval)
+            dialog.dismiss()
+        }
 
-            cancelExistingAlarm()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                scheduleRepeatingNotification(interval)
+        cancelButton.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+
+    private fun showAddChallengeDialog(onChallengeAdded: (Challenge) -> Unit) {
+        val dialogView = layoutInflater.inflate(R.layout.add_challenge_dialog, null)
+
+        val input = dialogView.findViewById<EditText>(R.id.inputChallenge)
+        val counter = dialogView.findViewById<TextView>(R.id.charCounter)
+        val saveButton = dialogView.findViewById<Button>(R.id.saveChallengeButton)
+
+        val priorityLow = dialogView.findViewById<View>(R.id.priorityLow)
+        val priorityMedium = dialogView.findViewById<View>(R.id.priorityMedium)
+        val priorityHigh = dialogView.findViewById<View>(R.id.priorityHigh)
+
+        var selectedPriority: Priority? = null
+
+        fun updateSelection(selected: View, priority: Priority) {
+            dialogView.findViewById<ImageView>(R.id.priorityLowSelected).visibility = View.GONE
+            dialogView.findViewById<ImageView>(R.id.priorityMediumSelected).visibility = View.GONE
+            dialogView.findViewById<ImageView>(R.id.priorityHighSelected).visibility = View.GONE
+
+            val dotId = when (priority) {
+                Priority.LOW -> R.id.priorityLowSelected
+                Priority.MEDIUM -> R.id.priorityMediumSelected
+                Priority.HIGH -> R.id.priorityHighSelected
+            }
+            dialogView.findViewById<ImageView>(dotId).visibility = View.VISIBLE
+
+            selectedPriority = priority
+        }
+
+        priorityLow.setOnClickListener { updateSelection(priorityLow, Priority.LOW) }
+        priorityMedium.setOnClickListener { updateSelection(priorityMedium, Priority.MEDIUM) }
+        priorityHigh.setOnClickListener { updateSelection(priorityHigh, Priority.HIGH) }
+
+        input.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                counter.text = "${s?.length ?: 0}/50"
+            }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
+
+        val dialog = AlertDialog.Builder(this)
+            .setView(dialogView)
+            .create()
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        saveButton.setOnClickListener {
+            val name = input.text.toString().trim()
+            if (name.isEmpty()) {
+                Toast.makeText(this, "Please enter a challenge name", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            if (selectedPriority == null) {
+                Toast.makeText(this, "Please select a priority", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
 
-            updateNextAlarmTime(interval)
-
-            refreshHandler.removeCallbacks(refreshRunnable)
-            refreshHandler.post(refreshRunnable)
-
+            val challenge = Challenge(title = name, priority = selectedPriority!!)
+            onChallengeAdded(challenge)
             dialog.dismiss()
         }
 
@@ -288,6 +270,13 @@ class MainActivity : AppCompatActivity() {
         dialog.show()
     }
 
+    private fun setupChallengeList() {
+        val recyclerView = findViewById<RecyclerView>(R.id.challengesRecyclerView)
+        challengeAdapter = ChallengeAdapter(challenges)
+        recyclerView.layoutManager = LinearLayoutManager(this)
+        recyclerView.adapter = challengeAdapter
+    }
+
     private fun updateNextAlarmTime(interval: Int) {
         val savedTriggerTime = PreferenceHelper.getLastAlarmTime(this)
         val nextAlarm = Calendar.getInstance().apply { timeInMillis = savedTriggerTime }
@@ -312,61 +301,8 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.alarmCountdown).text = countdownText
     }
 
-    private fun cancelExistingAlarm() {
-        val intent = Intent(this, AlarmReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
-            this, 0, intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_NO_CREATE
-        )
-        if (pendingIntent != null) {
-            val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
-            alarmManager.cancel(pendingIntent)
-        }
-    }
-
     override fun onDestroy() {
         super.onDestroy()
         refreshHandler.removeCallbacks(refreshRunnable)
     }
-
-    class ChallengeAdapter(private val challenges: List<Challenge>) :
-        RecyclerView.Adapter<ChallengeAdapter.ViewHolder>() {
-
-        class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-            val title: TextView = itemView.findViewById(R.id.challengeTitle)
-            val progressText: TextView = itemView.findViewById(R.id.progressText)
-            val progressBar: ProgressBar = itemView.findViewById(R.id.challengeProgressBar)
-        }
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val view = LayoutInflater.from(parent.context)
-                .inflate(R.layout.challenge_item, parent, false)
-            return ViewHolder(view)
-        }
-
-        override fun getItemCount(): Int = challenges.size
-
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            val challenge = challenges[position]
-            holder.title.text = challenge.title
-            holder.progressText.text = "${challenge.current} / ${challenge.total}"
-            holder.progressBar.max = challenge.total
-            holder.progressBar.progress = challenge.current
-        }
-    }
-
-    data class Challenge(val title: String, val current: Int, val total: Int)
-
-    private fun setupChallengeList() {
-        val recyclerView = findViewById<RecyclerView>(R.id.challengesRecyclerView)
-        val challenges = listOf(
-            Challenge("Straighten up during work", 1, 3),
-            Challenge("Drink water", 2, 3),
-            Challenge("Take breaks", 0, 3),
-        )
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = ChallengeAdapter(challenges)
-    }
-
-
 }
