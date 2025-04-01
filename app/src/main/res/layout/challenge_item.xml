@@ -39,4 +39,16 @@
         android:backgroundTint="#DDDDDD"
         android:max="3"
         android:progress="1" />
+
+    <ImageView
+        android:id="@+id/doneCircle"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_gravity="center|end"
+        android:layout_marginEnd="16dp"
+        android:src="@drawable/circle_black"
+        android:visibility="gone"
+        />
+
+
 </LinearLayout>

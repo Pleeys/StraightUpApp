@@ -41,7 +41,15 @@ class MainActivity : AppCompatActivity() {
         LOW, MEDIUM, HIGH
     }
 
-    data class Challenge(val title: String, val current: Int = 0, val total: Int = 3, val priority: Priority)
+    data class Challenge(
+        val title: String,
+        val current: Int = 0,
+        val total: Int = 3,
+        val priority: Priority,
+        val isUserCreated: Boolean = false,
+        val isCompleted: Boolean = false
+    )
+
 
     class ChallengeAdapter(private val challenges: List<Challenge>) :
         RecyclerView.Adapter<ChallengeAdapter.ViewHolder>() {
@@ -50,6 +58,9 @@ class MainActivity : AppCompatActivity() {
             val title: TextView = itemView.findViewById(R.id.challengeTitle)
             val progressText: TextView = itemView.findViewById(R.id.progressText)
             val progressBar: ProgressBar = itemView.findViewById(R.id.challengeProgressBar)
+            val doneCircle: ImageView = itemView.findViewById(R.id.doneCircle)
+
+
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -63,20 +74,50 @@ class MainActivity : AppCompatActivity() {
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             val challenge = challenges[position]
             holder.title.text = challenge.title
-            holder.progressText.text = "${challenge.current} / ${challenge.total}"
-            holder.progressBar.max = challenge.total
-            holder.progressBar.progress = challenge.current
 
-            val bg = when (challenge.priority) {
+            if (challenge.isUserCreated) {
+                holder.progressBar.visibility = View.GONE
+                holder.progressText.visibility = View.GONE
+                holder.doneCircle.visibility = View.VISIBLE
+
+                holder.doneCircle.alpha = 1f
+                holder.doneCircle.setOnClickListener {
+                    holder.doneCircle.animate()
+                        .alpha(0f)
+                        .setDuration(1000)
+                        .withEndAction {
+                            (challenges as MutableList).removeAt(holder.adapterPosition)
+                            notifyItemRemoved(holder.adapterPosition)
+                            ChallengeStorage.saveChallenges(holder.itemView.context, challenges)
+                            Toast.makeText(
+                                holder.itemView.context,
+                                "Congratulations!",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        .start()
+                }
+
+            } else {
+                holder.progressBar.visibility = View.VISIBLE
+                holder.progressText.visibility = View.VISIBLE
+                holder.doneCircle.visibility = View.GONE
+
+                holder.progressText.text = "${challenge.current} / ${challenge.total}"
+                holder.progressBar.max = challenge.total
+                holder.progressBar.progress = challenge.current
+            }
+
+            val bgRes = when (challenge.priority) {
                 Priority.LOW -> R.drawable.challenge_item_low
                 Priority.MEDIUM -> R.drawable.challenge_item_medium
                 Priority.HIGH -> R.drawable.challenge_item_high
             }
-            holder.itemView.setBackgroundResource(bg)
+            holder.itemView.setBackgroundResource(bgRes)
         }
-    }
+        }
 
-    @RequiresApi(Build.VERSION_CODES.O)
+        @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -233,7 +274,8 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            val challenge = Challenge(title = name, priority = selectedPriority!!)
+            val challenge = Challenge(title = name, priority = selectedPriority!!, isUserCreated = true)
+
             onChallengeAdded(challenge)
             ChallengeStorage.saveChallenges(this, challenges)
             updateChallengeCount()
