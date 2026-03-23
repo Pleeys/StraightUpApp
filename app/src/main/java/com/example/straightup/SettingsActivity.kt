@@ -40,6 +40,14 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.intervalValue).text =
             if (interval == 0) "Nie ustawiono" else "Co $interval minut"
 
+        // Przełóż alarm jeśli czas minął
+        if (interval > 0) {
+            val lastAlarmTime = PreferenceHelper.getLastAlarmTime(this)
+            if (lastAlarmTime == -1L || lastAlarmTime < System.currentTimeMillis()) {
+                scheduleAlarm(interval)
+            }
+        }
+
         val start = PreferenceHelper.getNightBreakStart(this)
         val end = PreferenceHelper.getNightBreakEnd(this)
         findViewById<TextView>(R.id.nightBreakValue).text = "$start – $end"

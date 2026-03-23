@@ -92,6 +92,11 @@ class MainActivity : AppCompatActivity() {
             findViewById<TextView>(R.id.alarmTime).text = "--:--"
             findViewById<TextView>(R.id.alarmCountdown).text = "Brak alarmu"
         } else {
+            // Jeśli czas alarmu już minął (lub nigdy nie był ustawiony), zaplanuj od nowa
+            val lastAlarmTime = PreferenceHelper.getLastAlarmTime(this)
+            if (lastAlarmTime == -1L || lastAlarmTime < System.currentTimeMillis()) {
+                scheduleAlarm(interval)
+            }
             updateNextAlarmDisplay()
         }
 
