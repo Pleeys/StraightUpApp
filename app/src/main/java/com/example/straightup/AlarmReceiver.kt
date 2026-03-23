@@ -35,19 +35,24 @@ class AlarmReceiver : BroadcastReceiver() {
          */
         fun scheduleNext(context: Context, intervalMinutes: Int) {
             if (intervalMinutes <= 0) return
-            val intervalMillis = intervalMinutes * 60 * 1000L
+            val intervalMillis = intervalMinutes.toLong() * 60_000L
             val triggerTime = System.currentTimeMillis() + intervalMillis
             PreferenceHelper.saveLastAlarmTime(context, triggerTime)
 
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             val pending = buildPendingIntent(context)
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP, triggerTime, pending
-                )
-            } else {
-                alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTime, pending)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP, triggerTime, pending
+                    )
+                } else {
+                    alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTime, pending)
+                }
+            } catch (e: SecurityException) {
+                // Fallback gdy brak uprawnienia SCHEDULE_EXACT_ALARM (Android 12+)
+                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pending)
             }
         }
 
@@ -67,15 +72,13 @@ class AlarmReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        // Sprawdź ciszę nocną z obsługą błędnych danych
-        if (isInNightBreak(context)) return
-
-        // Zaplanuj kolejny alarm (setExactAndAllowWhileIdle nie powtarza się automatycznie)
+        // Zaplanuj kolejny alarm zawsze — niezależnie od ciszy nocnej
         val interval = PreferenceHelper.getInterval(context)
         scheduleNext(context, interval)
 
-        PreferenceHelper.incrementTotalNotifications(context)
+        if (isInNightBreak(context)) return
 
+        PreferenceHelper.incrementTotalNotifications(context)
         sendNotification(context)
     }
 
