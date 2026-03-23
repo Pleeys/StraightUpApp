@@ -7,39 +7,19 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
+import android.os.Looper
 import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
 import android.widget.*
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var challengeAdapter: ChallengeAdapter
-    private val challenges = mutableListOf<Challenge>()
-
-    private val refreshHandler = android.os.Handler()
-    private val refreshRunnable = object : Runnable {
-        override fun run() {
-            val interval = PreferenceHelper.getInterval(this@MainActivity)
-            if (interval > 0) {
-                updateNextAlarmTime(interval)
-            }
-            refreshHandler.postDelayed(this, 60_000)
-        }
-    }
-
-    enum class Priority {
-        LOW, MEDIUM, HIGH
-    }
+    enum class Priority { LOW, MEDIUM, HIGH }
 
     data class Challenge(
         val title: String,
@@ -50,125 +30,66 @@ class MainActivity : AppCompatActivity() {
         val isCompleted: Boolean = false
     )
 
-
-    class ChallengeAdapter(private val challenges: List<Challenge>) :
-        RecyclerView.Adapter<ChallengeAdapter.ViewHolder>() {
-
-        class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-            val title: TextView = itemView.findViewById(R.id.challengeTitle)
-            val progressText: TextView = itemView.findViewById(R.id.progressText)
-            val progressBar: ProgressBar = itemView.findViewById(R.id.challengeProgressBar)
-            val doneCircle: ImageView = itemView.findViewById(R.id.doneCircle)
-
-
+    private val refreshHandler = android.os.Handler(Looper.getMainLooper())
+    private val refreshRunnable = object : Runnable {
+        override fun run() {
+            val interval = PreferenceHelper.getInterval(this@MainActivity)
+            if (interval > 0) updateNextAlarmDisplay()
+            refreshHandler.postDelayed(this, 60_000)
         }
+    }
 
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val view = LayoutInflater.from(parent.context)
-                .inflate(R.layout.challenge_item, parent, false)
-            return ViewHolder(view)
-        }
-
-        override fun getItemCount(): Int = challenges.size
-
-        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            val challenge = challenges[position]
-            holder.title.text = challenge.title
-
-            if (challenge.isUserCreated) {
-                holder.progressBar.visibility = View.GONE
-                holder.progressText.visibility = View.GONE
-                holder.doneCircle.visibility = View.VISIBLE
-
-                holder.doneCircle.alpha = 1f
-                holder.doneCircle.setOnClickListener {
-                    holder.doneCircle.animate()
-                        .alpha(0f)
-                        .setDuration(1000)
-                        .withEndAction {
-                            (challenges as MutableList).removeAt(holder.adapterPosition)
-                            notifyItemRemoved(holder.adapterPosition)
-                            ChallengeStorage.saveChallenges(holder.itemView.context, challenges)
-                            Toast.makeText(
-                                holder.itemView.context,
-                                "Congratulations!",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                        .start()
-                }
-
-            } else {
-                holder.progressBar.visibility = View.VISIBLE
-                holder.progressText.visibility = View.VISIBLE
-                holder.doneCircle.visibility = View.GONE
-
-                holder.progressText.text = "${challenge.current} / ${challenge.total}"
-                holder.progressBar.max = challenge.total
-                holder.progressBar.progress = challenge.current
-            }
-
-            val bgRes = when (challenge.priority) {
-                Priority.LOW -> R.drawable.challenge_item_low
-                Priority.MEDIUM -> R.drawable.challenge_item_medium
-                Priority.HIGH -> R.drawable.challenge_item_high
-            }
-            holder.itemView.setBackgroundResource(bgRes)
-        }
-        }
-
-        @RequiresApi(Build.VERSION_CODES.O)
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        challenges.addAll(ChallengeStorage.loadChallenges(this))
-
         PreferenceHelper.saveLoginDate(this)
-        findViewById<TextView>(R.id.streakText).text = "${PreferenceHelper.getCurrentStreak(this)} days"
-        findViewById<TextView>(R.id.usernameText).text = PreferenceHelper.getNick(this)
 
+        setupHeader()
+        setupNotificationChannel()
+        setupAlarmSection()
+        setupConfirmButton()
+        setupBottomNav()
+        requestNotificationPermission()
+    }
+
+    private fun setupHeader() {
+        findViewById<TextView>(R.id.usernameText).text = PreferenceHelper.getNick(this)
+        findViewById<TextView>(R.id.streakText).text = "${PreferenceHelper.getCurrentStreak(this)} dni"
+        findViewById<ImageView>(R.id.avatarImage).setOnClickListener {
+            startActivity(Intent(this, ProfileActivity::class.java))
+        }
+    }
+
+    private fun setupNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "reminder_channel",
+                "Przypomnienia o postawie",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Kanał przypomnień o prostowaniu pleców"
+            }
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun setupAlarmSection() {
         val nightBreakStart = PreferenceHelper.getNightBreakStart(this)
         val nightBreakEnd = PreferenceHelper.getNightBreakEnd(this)
         findViewById<TextView>(R.id.nightBreak).text = "$nightBreakStart - $nightBreakEnd"
 
-        findViewById<ImageView>(R.id.avatarImage).setOnClickListener {
-            startActivity(Intent(this, ProfileActivity::class.java))
-        }
-
-        findViewById<Button>(R.id.addChallengeButton).setOnClickListener {
-            showAddChallengeDialog { newChallenge ->
-                challenges.add(newChallenge)
-                challengeAdapter.notifyItemInserted(challenges.size - 1)
-            }
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 100)
-            }
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                "reminder_channel",
-                "Reminder Channel",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Channel for interval reminders"
-            }
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-        }
-
         val interval = PreferenceHelper.getInterval(this)
-        findViewById<TextView>(R.id.alarmInterval).text = "$interval minutes"
+        findViewById<TextView>(R.id.alarmInterval).text =
+            if (interval == 0) "Ustaw!" else "$interval minut"
 
         if (interval == 0) {
             findViewById<TextView>(R.id.alarmTime).text = "--:--"
-            findViewById<TextView>(R.id.alarmCountdown).text = "No alarm set"
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            updateNextAlarmTime(interval)
+            findViewById<TextView>(R.id.alarmCountdown).text = "Brak alarmu"
+        } else {
+            updateNextAlarmDisplay()
         }
 
         findViewById<ImageView>(R.id.editInterval).setOnClickListener {
@@ -177,14 +98,87 @@ class MainActivity : AppCompatActivity() {
         findViewById<ImageView>(R.id.editNightBreak).setOnClickListener {
             showNightBreakPickerDialog()
         }
-
-        refreshHandler.post(refreshRunnable)
-
-        setupChallengeList()
-
-        updateChallengeCount()
-
     }
+
+    private fun setupConfirmButton() {
+        updateConfirmCount()
+        findViewById<Button>(R.id.confirmPostureButton).setOnClickListener {
+            PreferenceHelper.saveConfirmation(this)
+            updateConfirmCount()
+            Toast.makeText(this, "Brawo! Zadbałeś o plecy 💪", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun updateConfirmCount() {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val prefs = getSharedPreferences("UserPrefs", Context.MODE_PRIVATE)
+        val todayCount = prefs.getInt("confirm_day_$today", 0)
+        findViewById<TextView>(R.id.confirmCountText).text = "Dziś: $todayCount potwierdzeń"
+    }
+
+    private fun setupBottomNav() {
+        val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNav)
+        bottomNav.selectedItemId = R.id.nav_home
+        bottomNav.setOnItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_home -> true
+                R.id.nav_exercises -> {
+                    startActivity(Intent(this, ExercisesActivity::class.java))
+                    finish()
+                    true
+                }
+                R.id.nav_stats -> {
+                    startActivity(Intent(this, StatisticsActivity::class.java))
+                    finish()
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 100)
+            }
+        }
+    }
+
+    // --- Planowanie alarmu ---
+
+    private fun scheduleAlarm(intervalMinutes: Int) {
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(this, AlarmReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            this, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val intervalMillis = intervalMinutes * 60 * 1000L
+        val triggerTime = System.currentTimeMillis() + intervalMillis
+        PreferenceHelper.saveLastAlarmTime(this, triggerTime)
+
+        alarmManager.setRepeating(
+            AlarmManager.RTC_WAKEUP,
+            triggerTime,
+            intervalMillis,
+            pendingIntent
+        )
+    }
+
+    private fun cancelAlarm() {
+        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(this, AlarmReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(
+            this, 0, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        alarmManager.cancel(pendingIntent)
+        PreferenceHelper.saveLastAlarmTime(this, -1L)
+    }
+
+    // --- Dialogi ---
 
     private fun showIntervalPickerDialog() {
         val dialogView = layoutInflater.inflate(R.layout.interval_picker_dialog, null)
@@ -194,94 +188,22 @@ class MainActivity : AppCompatActivity() {
 
         picker.minValue = 5
         picker.maxValue = 120
-        picker.value = PreferenceHelper.getInterval(this)
+        picker.value = PreferenceHelper.getInterval(this).takeIf { it >= 5 } ?: 30
 
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
             .create()
-
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         saveButton.setOnClickListener {
             val interval = picker.value
             PreferenceHelper.saveInterval(this, interval)
-            findViewById<TextView>(R.id.alarmInterval).text = "$interval minutes"
-            updateNextAlarmTime(interval)
+            findViewById<TextView>(R.id.alarmInterval).text = "$interval minut"
+            scheduleAlarm(interval)          // ← planuje alarm w systemie
+            updateNextAlarmDisplay()
             dialog.dismiss()
         }
-
-        cancelButton.setOnClickListener {
-            dialog.dismiss()
-        }
-
-        dialog.show()
-    }
-
-    private fun showAddChallengeDialog(onChallengeAdded: (Challenge) -> Unit) {
-        val dialogView = layoutInflater.inflate(R.layout.add_challenge_dialog, null)
-
-        val input = dialogView.findViewById<EditText>(R.id.inputChallenge)
-        val counter = dialogView.findViewById<TextView>(R.id.charCounter)
-        val saveButton = dialogView.findViewById<Button>(R.id.saveChallengeButton)
-
-        val priorityLow = dialogView.findViewById<View>(R.id.priorityLow)
-        val priorityMedium = dialogView.findViewById<View>(R.id.priorityMedium)
-        val priorityHigh = dialogView.findViewById<View>(R.id.priorityHigh)
-
-        var selectedPriority: Priority? = null
-
-        fun updateSelection(selected: View, priority: Priority) {
-            dialogView.findViewById<ImageView>(R.id.priorityLowSelected).visibility = View.GONE
-            dialogView.findViewById<ImageView>(R.id.priorityMediumSelected).visibility = View.GONE
-            dialogView.findViewById<ImageView>(R.id.priorityHighSelected).visibility = View.GONE
-
-            val dotId = when (priority) {
-                Priority.LOW -> R.id.priorityLowSelected
-                Priority.MEDIUM -> R.id.priorityMediumSelected
-                Priority.HIGH -> R.id.priorityHighSelected
-            }
-            dialogView.findViewById<ImageView>(dotId).visibility = View.VISIBLE
-
-            selectedPriority = priority
-        }
-
-        priorityLow.setOnClickListener { updateSelection(priorityLow, Priority.LOW) }
-        priorityMedium.setOnClickListener { updateSelection(priorityMedium, Priority.MEDIUM) }
-        priorityHigh.setOnClickListener { updateSelection(priorityHigh, Priority.HIGH) }
-
-        input.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) {
-                counter.text = "${s?.length ?: 0}/50"
-            }
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-        })
-
-        val dialog = AlertDialog.Builder(this)
-            .setView(dialogView)
-            .create()
-
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
-
-        saveButton.setOnClickListener {
-            val name = input.text.toString().trim()
-            if (name.isEmpty()) {
-                Toast.makeText(this, "Please enter a challenge name", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-            if (selectedPriority == null) {
-                Toast.makeText(this, "Please select a priority", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            val challenge = Challenge(title = name, priority = selectedPriority!!, isUserCreated = true)
-
-            onChallengeAdded(challenge)
-            ChallengeStorage.saveChallenges(this, challenges)
-            updateChallengeCount()
-            dialog.dismiss()
-        }
-
+        cancelButton.setOnClickListener { dialog.dismiss() }
         dialog.show()
     }
 
@@ -298,76 +220,59 @@ class MainActivity : AppCompatActivity() {
         val dialog = AlertDialog.Builder(this)
             .setView(dialogView)
             .create()
-
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
         saveButton.setOnClickListener {
             val start = String.format("%02d:%02d", startPicker.hour, startPicker.minute)
             val end = String.format("%02d:%02d", endPicker.hour, endPicker.minute)
-
             PreferenceHelper.saveNightBreakStart(this, start)
             PreferenceHelper.saveNightBreakEnd(this, end)
             findViewById<TextView>(R.id.nightBreak).text = "$start - $end"
-
             dialog.dismiss()
         }
-
-        cancelButton.setOnClickListener {
-            dialog.dismiss()
-        }
-
+        cancelButton.setOnClickListener { dialog.dismiss() }
         dialog.show()
     }
 
-    private fun setupChallengeList() {
-        val recyclerView = findViewById<RecyclerView>(R.id.challengesRecyclerView)
+    // --- Wyświetlanie czasu ---
 
-        challenges.clear()
-        challenges.addAll(ChallengeStorage.loadChallenges(this))
-
-        challengeAdapter = ChallengeAdapter(challenges)
-        recyclerView.layoutManager = LinearLayoutManager(this)
-        recyclerView.adapter = challengeAdapter
-    }
-
-    private fun updateNextAlarmTime(interval: Int) {
+    private fun updateNextAlarmDisplay() {
         val savedTriggerTime = PreferenceHelper.getLastAlarmTime(this)
-        val nextAlarm = Calendar.getInstance().apply { timeInMillis = savedTriggerTime }
+        if (savedTriggerTime == -1L) {
+            findViewById<TextView>(R.id.alarmTime).text = "--:--"
+            findViewById<TextView>(R.id.alarmCountdown).text = "Brak alarmu"
+            return
+        }
 
         val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
         timeFormat.timeZone = TimeZone.getDefault()
-        val formattedTime = timeFormat.format(nextAlarm.time)
+        findViewById<TextView>(R.id.alarmTime).text =
+            timeFormat.format(Date(savedTriggerTime))
 
-        findViewById<TextView>(R.id.alarmTime).text = formattedTime
-        findViewById<TextView>(R.id.alarmPeriod).visibility = View.GONE
+        val diffMillis = savedTriggerTime - System.currentTimeMillis()
+        val minutesUntil = (diffMillis / 60000).toInt()
 
-        val now = Calendar.getInstance().timeInMillis
-        val diffMillis = nextAlarm.timeInMillis - now
-        val minutesUntilAlarm = (diffMillis / 60000).toInt()
-
-        val countdownText = when {
-            minutesUntilAlarm < 1 -> "less than a minute"
-            minutesUntilAlarm == 1 -> "in 1 minute"
-            else -> "in $minutesUntilAlarm minutes"
+        findViewById<TextView>(R.id.alarmCountdown).text = when {
+            minutesUntil < 1 -> "za chwilę"
+            minutesUntil == 1 -> "za 1 minutę"
+            else -> "za $minutesUntil minut"
         }
+    }
 
-        findViewById<TextView>(R.id.alarmCountdown).text = countdownText
+    override fun onResume() {
+        super.onResume()
+        refreshHandler.post(refreshRunnable)
+        setupHeader()
+        updateConfirmCount()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        refreshHandler.removeCallbacks(refreshRunnable)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         refreshHandler.removeCallbacks(refreshRunnable)
     }
-
-    private fun updateChallengeCount() {
-        val count = challenges.size
-        if(count == 0){
-            findViewById<TextView>(R.id.challengeCount).text = "Add new challenges!"
-        }
-        else {
-            findViewById<TextView>(R.id.challengeCount).text = "Challenges ($count)"
-        }
-    }
-
-
 }

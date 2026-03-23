@@ -1,16 +1,356 @@
 <?xml version="1.0" encoding="utf-8"?>
-
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
-    android:gravity="top|center_horizontal"
-    android:padding="16dp"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#F0F4F8">
 
-    <include layout="@layout/profile_header" />
+    <!-- Header (niebieskie tło z profilem i strekiem) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#1565C0"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:paddingTop="40dp"
+        android:gravity="center_vertical">
 
-    <include layout="@layout/alarm_card" />
+        <!-- Avatar -->
+        <FrameLayout
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="16dp">
+            <ImageView
+                android:id="@+id/avatarImage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/profile_face"
+                android:contentDescription="Avatar"
+                android:scaleType="centerInside"
+                android:background="@drawable/circle_background_beige"
+                android:padding="8dp" />
+        </FrameLayout>
 
-    <include layout="@layout/challenge_section" />
+        <!-- Imię i poziom -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/usernameText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="#FFFFFF" />
+            <TextView
+                android:id="@+id/levelText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Dbaj o plecy każdego dnia!"
+                android:textSize="12sp"
+                android:textColor="#B3D1FF" />
+        </LinearLayout>
+
+        <!-- Streak -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center">
+            <ImageView
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:src="@drawable/ic_fire"
+                android:layout_gravity="center_horizontal"
+                app:tint="#FFD54F" />
+            <TextView
+                android:id="@+id/streakText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0 dni"
+                android:textSize="12sp"
+                android:textColor="#FFFFFF"
+                android:gravity="center_horizontal" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Streak"
+                android:textSize="10sp"
+                android:textColor="#B3D1FF"
+                android:gravity="center_horizontal" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Przewijalna zawartość -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:padding="16dp"
+        android:clipToPadding="false">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Karta: Przycisk "Wyprostowałem!" -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="#FFFFFF">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="20dp"
+                    android:gravity="center">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Jak Twoja postawa?"
+                        android:textSize="16sp"
+                        android:textColor="#666666"
+                        android:gravity="center" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Wyprostuj plecy i kliknij!"
+                        android:textSize="13sp"
+                        android:textColor="#999999"
+                        android:layout_marginTop="4dp"
+                        android:gravity="center" />
+
+                    <Button
+                        android:id="@+id/confirmPostureButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:layout_marginTop="16dp"
+                        android:text="Wyprostowałem! ✓"
+                        android:textSize="16sp"
+                        android:textColor="#FFFFFF"
+                        android:textAllCaps="false"
+                        android:backgroundTint="#2E7D32"
+                        android:stateListAnimator="@null" />
+
+                    <TextView
+                        android:id="@+id/confirmCountText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Dziś: 0 potwierdzeń"
+                        android:textSize="12sp"
+                        android:textColor="#999999"
+                        android:layout_marginTop="10dp"
+                        android:gravity="center" />
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+            <!-- Karta: Ustawienia alarmu -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="#FFFFFF">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- Górna sekcja: czas następnego przypomnienia -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:padding="16dp"
+                        android:background="#E3F2FD">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Następne przypomnienie"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:textColor="#1565C0" />
+
+                            <TextView
+                                android:id="@+id/alarmCountdown"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Brak alarmu"
+                                android:textSize="13sp"
+                                android:textColor="#6A7686"
+                                android:layout_marginTop="2dp" />
+
+                            <TextView
+                                android:id="@+id/alarmTime"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--:--"
+                                android:textSize="32sp"
+                                android:textStyle="bold"
+                                android:textColor="#1565C0"
+                                android:layout_marginTop="4dp" />
+
+                            <TextView
+                                android:id="@+id/alarmPeriod"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:visibility="gone" />
+
+                        </LinearLayout>
+
+                        <ImageView
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:src="@drawable/ic_alarm"
+                            app:tint="#1565C0"
+                            android:padding="8dp" />
+
+                    </LinearLayout>
+
+                    <!-- Dolna sekcja: interwał i night break -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="16dp">
+
+                        <!-- Interwał -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Interwał"
+                                    android:textStyle="bold"
+                                    android:textSize="14sp"
+                                    android:textColor="#1A1A2E" />
+
+                                <TextView
+                                    android:id="@+id/alarmInterval"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Ustaw!"
+                                    android:textSize="13sp"
+                                    android:textColor="#6A7686" />
+
+                            </LinearLayout>
+
+                            <ImageView
+                                android:id="@+id/editInterval"
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
+                                android:layout_marginStart="8dp"
+                                android:src="@drawable/ic_edit"
+                                app:tint="#1565C0"
+                                android:background="@drawable/circle_background_beige"
+                                android:padding="6dp"
+                                android:contentDescription="Edytuj interwał" />
+
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="1dp"
+                            android:layout_height="match_parent"
+                            android:background="#EEEEEE"
+                            android:layout_marginHorizontal="8dp" />
+
+                        <!-- Night break -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Cisza nocna"
+                                    android:textStyle="bold"
+                                    android:textSize="14sp"
+                                    android:textColor="#1A1A2E" />
+
+                                <TextView
+                                    android:id="@+id/nightBreak"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="22:00 - 09:00"
+                                    android:textSize="13sp"
+                                    android:textColor="#6A7686" />
+
+                            </LinearLayout>
+
+                            <ImageView
+                                android:id="@+id/editNightBreak"
+                                android:layout_width="36dp"
+                                android:layout_height="36dp"
+                                android:layout_marginStart="8dp"
+                                android:src="@drawable/ic_edit"
+                                app:tint="#1565C0"
+                                android:background="@drawable/circle_background_beige"
+                                android:padding="6dp"
+                                android:contentDescription="Edytuj ciszę nocną" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </androidx.cardview.widget.CardView>
+
+        </LinearLayout>
+
+    </ScrollView>
+
+    <!-- Bottom Navigation -->
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNav"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#FFFFFF"
+        app:menu="@menu/bottom_nav_menu"
+        app:itemIconTint="@color/bottom_nav_item_color"
+        app:itemTextColor="@color/bottom_nav_item_color" />
 
 </LinearLayout>

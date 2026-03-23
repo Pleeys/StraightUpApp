@@ -2,7 +2,6 @@ package com.example.straightup
 
 import android.content.Context
 import android.os.Build
-import android.preference.PreferenceManager
 import androidx.annotation.RequiresApi
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -114,5 +113,58 @@ object PreferenceHelper {
     fun getNightBreakEnd(context: Context): String =
         context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
             .getString(KEY_NIGHT_BREAK_END, "09:00") ?: "09:00"
+
+    // --- Statystyki potwierdzeń ---
+    private const val KEY_CONFIRM_COUNT = "confirm_count"
+    private const val KEY_TOTAL_NOTIFICATIONS = "total_notifications"
+    private const val KEY_CONFIRM_PREFIX = "confirm_day_"
+
+    fun incrementTotalNotifications(context: Context) {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val current = prefs.getInt(KEY_TOTAL_NOTIFICATIONS, 0)
+        prefs.edit().putInt(KEY_TOTAL_NOTIFICATIONS, current + 1).apply()
+    }
+
+    fun saveConfirmation(context: Context) {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        // Całkowita liczba potwierdzeń
+        val current = prefs.getInt(KEY_CONFIRM_COUNT, 0)
+        prefs.edit().putInt(KEY_CONFIRM_COUNT, current + 1).apply()
+        // Potwierdzenie dla dzisiejszego dnia (format: confirm_day_2026-03-23)
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            .format(java.util.Date())
+        val dayKey = KEY_CONFIRM_PREFIX + today
+        val todayCount = prefs.getInt(dayKey, 0)
+        prefs.edit().putInt(dayKey, todayCount + 1).apply()
+    }
+
+    fun getConfirmationCount(context: Context): Int {
+        return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            .getInt(KEY_CONFIRM_COUNT, 0)
+    }
+
+    fun getTotalNotificationsCount(context: Context): Int {
+        return context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            .getInt(KEY_TOTAL_NOTIFICATIONS, 0)
+    }
+
+    fun getResponseRate(context: Context): Float {
+        val total = getTotalNotificationsCount(context)
+        if (total == 0) return 0f
+        return getConfirmationCount(context).toFloat() / total * 100f
+    }
+
+    /** Zwraca liczbę potwierdzeń dla każdego z ostatnich 7 dni (od najstarszego do dziś) */
+    fun getWeeklyData(context: Context): List<Int> {
+        val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+        val calendar = java.util.Calendar.getInstance()
+        return (6 downTo 0).map { daysAgo ->
+            val cal = calendar.clone() as java.util.Calendar
+            cal.add(java.util.Calendar.DAY_OF_YEAR, -daysAgo)
+            val dateStr = sdf.format(cal.time)
+            prefs.getInt(KEY_CONFIRM_PREFIX + dateStr, 0)
+        }
+    }
 
 }

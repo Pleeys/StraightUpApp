@@ -1,6 +1,7 @@
 package com.example.straightup
 
 import android.Manifest
+import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -11,49 +12,83 @@ import androidx.core.app.NotificationManagerCompat
 import java.util.Calendar
 
 class AlarmReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        // Pobierz ustawione czasy przerwy nocnej z preferencji
-        val nightStart = PreferenceHelper.getNightBreakStart(context)  // np. "22:00"
-        val nightEnd = PreferenceHelper.getNightBreakEnd(context)      // np. "09:00"
 
-        // Zamiana ustawionych czasów na minuty od północy
+    companion object {
+        const val NOTIFICATION_ID = 1001
+        const val ACTION_CONFIRM = "com.example.straightup.ACTION_POSTURE_CONFIRM"
+
+        private val POSTURE_MESSAGES = listOf(
+            "Wyprostuj plecy!",
+            "Sprawdź swoją postawę!",
+            "Czas wstać na chwilę!",
+            "Twój kręgosłup ci dziękuje — wyprostuj się!",
+            "Przerwa od siedzenia — już czas!",
+            "Barki do tyłu, głowa prosto!",
+            "Pamiętaj o postawie — Twój kręgosłup to doceni!"
+        )
+    }
+
+    override fun onReceive(context: Context, intent: Intent) {
+        val nightStart = PreferenceHelper.getNightBreakStart(context)
+        val nightEnd = PreferenceHelper.getNightBreakEnd(context)
+
         val startParts = nightStart.split(":").map { it.toInt() }
         val endParts = nightEnd.split(":").map { it.toInt() }
         val startMinutes = startParts[0] * 60 + startParts[1]
         val endMinutes = endParts[0] * 60 + endParts[1]
 
-        // Pobierz aktualny czas
         val now = Calendar.getInstance()
         val currentMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
 
-        // Sprawdź, czy jesteśmy w przerwie nocnej
-        val inNightBreak = if (startMinutes < endMinutes) {
-            // Przypadek, gdy przerwa nocna nie przechodzi przez północ (np. 23:00 - 07:00)
-            currentMinutes in startMinutes until endMinutes
-        } else {
-            // Przypadek, gdy przerwa nocna przechodzi przez północ (np. 22:00 - 09:00)
+        val inNightBreak = if (startMinutes > endMinutes) {
             currentMinutes >= startMinutes || currentMinutes < endMinutes
+        } else {
+            currentMinutes in startMinutes until endMinutes
         }
 
-        if (inNightBreak) {
-            // W przerwie nocnej nie wysyłamy powiadomień
-            return
+        if (inNightBreak) return
+
+        // Zaktualizuj czas następnego alarmu w prefs (dla wyświetlacza w UI)
+        val intervalMillis = PreferenceHelper.getInterval(context) * 60 * 1000L
+        if (intervalMillis > 0) {
+            PreferenceHelper.saveLastAlarmTime(context, System.currentTimeMillis() + intervalMillis)
         }
 
-        // Jeżeli nie jesteśmy w przerwie nocnej – wyświetl powiadomienie
+        PreferenceHelper.incrementTotalNotifications(context)
+
+        val message = POSTURE_MESSAGES.random()
+
+        val confirmIntent = Intent(context, PostureConfirmReceiver::class.java).apply {
+            action = ACTION_CONFIRM
+            putExtra("notification_id", NOTIFICATION_ID)
+        }
+        val confirmPending = PendingIntent.getBroadcast(
+            context,
+            0,
+            confirmIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val notification = NotificationCompat.Builder(context, "reminder_channel")
-            .setContentTitle("Time to take a break")
-            .setContentText("Stay on track with your goals.")
+            .setContentTitle("StraightUp — czas na postaw\u0119!")
+            .setContentText(message)
             .setSmallIcon(R.drawable.ic_alarm)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .addAction(
+                R.drawable.ic_alarm,
+                "Wyprostowa\u0142em! \u2713",
+                confirmPending
+            )
+            .setAutoCancel(true)
             .build()
 
         val manager = NotificationManagerCompat.from(context)
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            return
-        }
-        manager.notify(1001, notification)
+        if (ActivityCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) return
+
+        manager.notify(NOTIFICATION_ID, notification)
     }
 }
-
-
