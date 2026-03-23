@@ -102,8 +102,8 @@ class AlarmReceiver : BroadcastReceiver() {
             val startMinutes = startParts[0] * 60 + startParts[1]
             val endMinutes = endParts[0] * 60 + endParts[1]
 
-            val now = Calendar.getInstance()
-            val currentMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+            val cal = Calendar.getInstance()
+            val currentMinutes = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
 
             val inNightBreak = if (startMinutes > endMinutes) {
                 currentMinutes >= startMinutes || currentMinutes < endMinutes
@@ -113,8 +113,7 @@ class AlarmReceiver : BroadcastReceiver() {
 
             if (!inNightBreak) return null
 
-            // Oblicz timestamp końca przerwy
-            val cal = Calendar.getInstance()
+            // Oblicz timestamp końca przerwy (reuse cal)
             cal.set(Calendar.HOUR_OF_DAY, endParts[0])
             cal.set(Calendar.MINUTE, endParts[1])
             cal.set(Calendar.SECOND, 0)
@@ -136,7 +135,7 @@ class AlarmReceiver : BroadcastReceiver() {
         ) return
 
         val confirmPending = PendingIntent.getBroadcast(
-            context, 0,
+            context, NOTIFICATION_ID,
             Intent(context, PostureConfirmReceiver::class.java).apply {
                 action = ACTION_CONFIRM
                 putExtra("notification_id", NOTIFICATION_ID)
