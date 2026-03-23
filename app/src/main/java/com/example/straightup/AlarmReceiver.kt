@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -18,6 +19,7 @@ class AlarmReceiver : BroadcastReceiver() {
     companion object {
         const val NOTIFICATION_ID = 1001
         const val ACTION_CONFIRM = "com.example.straightup.ACTION_POSTURE_CONFIRM"
+        private const val TAG = "AlarmReceiver"
 
         private val POSTURE_MESSAGES = listOf(
             "Wyprostuj plecy!",
@@ -29,19 +31,22 @@ class AlarmReceiver : BroadcastReceiver() {
             "Pamiętaj o postawie — Twój kręgosłup to doceni!"
         )
 
-        /**
-         * Planuje następny alarm. Używa setExactAndAllowWhileIdle — działa w Doze mode
-         * bez konieczności uprawnienia SCHEDULE_EXACT_ALARM.
-         */
         fun scheduleNext(context: Context, intervalMinutes: Int) {
             if (intervalMinutes <= 0) return
-            val intervalMillis = intervalMinutes.toLong() * 60_000L
-            val triggerTime = System.currentTimeMillis() + intervalMillis
-            PreferenceHelper.saveLastAlarmTime(context, triggerTime)
+            val triggerTime = System.currentTimeMillis() + intervalMinutes.toLong() * 60_000L
+            scheduleAt(context, triggerTime)
+        }
 
+        fun cancel(context: Context) {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            alarmManager.cancel(buildPendingIntent(context))
+            PreferenceHelper.saveLastAlarmTime(context, -1L)
+        }
+
+        private fun scheduleAt(context: Context, triggerTime: Long) {
+            PreferenceHelper.saveLastAlarmTime(context, triggerTime)
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             val pending = buildPendingIntent(context)
-
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     alarmManager.setExactAndAllowWhileIdle(
@@ -50,16 +55,10 @@ class AlarmReceiver : BroadcastReceiver() {
                 } else {
                     alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTime, pending)
                 }
-            } catch (e: SecurityException) {
-                // Fallback gdy brak uprawnienia SCHEDULE_EXACT_ALARM (Android 12+)
+            } catch (e: Exception) {
+                Log.e(TAG, "Exact alarm scheduling failed, using inexact fallback", e)
                 alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pending)
             }
-        }
-
-        fun cancel(context: Context) {
-            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            alarmManager.cancel(buildPendingIntent(context))
-            PreferenceHelper.saveLastAlarmTime(context, -1L)
         }
 
         private fun buildPendingIntent(context: Context): PendingIntent {
@@ -72,17 +71,25 @@ class AlarmReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        // Zaplanuj kolejny alarm zawsze — niezależnie od ciszy nocnej
         val interval = PreferenceHelper.getInterval(context)
+
+        // Jeśli trwa cisza nocna — zaplanuj jeden alarm na jej koniec (bez wakeupów co N minut)
+        val nightBreakEnd = nightBreakEndTime(context)
+        if (nightBreakEnd != null) {
+            scheduleAt(context, nightBreakEnd)
+            return
+        }
+
         scheduleNext(context, interval)
-
-        if (isInNightBreak(context)) return
-
         PreferenceHelper.incrementTotalNotifications(context)
         sendNotification(context)
     }
 
-    private fun isInNightBreak(context: Context): Boolean {
+    /**
+     * Jeśli teraz jest cisza nocna, zwraca timestamp końca tej przerwy.
+     * W przeciwnym razie zwraca null.
+     */
+    private fun nightBreakEndTime(context: Context): Long? {
         return try {
             val nightStart = PreferenceHelper.getNightBreakStart(context)
             val nightEnd = PreferenceHelper.getNightBreakEnd(context)
@@ -95,13 +102,27 @@ class AlarmReceiver : BroadcastReceiver() {
             val now = Calendar.getInstance()
             val currentMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
 
-            if (startMinutes > endMinutes) {
+            val inNightBreak = if (startMinutes > endMinutes) {
                 currentMinutes >= startMinutes || currentMinutes < endMinutes
             } else {
                 currentMinutes in startMinutes until endMinutes
             }
+
+            if (!inNightBreak) return null
+
+            // Oblicz timestamp końca przerwy
+            val cal = Calendar.getInstance()
+            cal.set(Calendar.HOUR_OF_DAY, endParts[0])
+            cal.set(Calendar.MINUTE, endParts[1])
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+            // Jeśli koniec przerwy jest wcześniej niż teraz (przekroczono północ) → jutro
+            if (cal.timeInMillis <= System.currentTimeMillis()) {
+                cal.add(Calendar.DAY_OF_YEAR, 1)
+            }
+            cal.timeInMillis
         } catch (e: Exception) {
-            false // przy błędnych danych nie blokuj powiadomienia
+            null // przy błędnych danych nie blokuj
         }
     }
 
