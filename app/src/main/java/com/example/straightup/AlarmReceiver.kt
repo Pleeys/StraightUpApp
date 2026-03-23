@@ -58,6 +58,9 @@ class AlarmReceiver : BroadcastReceiver() {
             } catch (e: SecurityException) {
                 Log.e(TAG, "Exact alarm requires SCHEDULE_EXACT_ALARM permission, using inexact fallback", e)
                 alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pending)
+            } catch (e: Exception) {
+                Log.e(TAG, "Exact alarm scheduling failed unexpectedly, using inexact fallback", e)
+                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pending)
             }
         }
 
