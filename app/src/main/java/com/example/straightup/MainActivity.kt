@@ -1,7 +1,8 @@
 package com.example.straightup
 
 import android.Manifest
-import android.app.*
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -156,34 +157,11 @@ class MainActivity : AppCompatActivity() {
     // --- Planowanie alarmu ---
 
     private fun scheduleAlarm(intervalMinutes: Int) {
-        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(this, AlarmReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
-            this, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val intervalMillis = intervalMinutes * 60 * 1000L
-        val triggerTime = System.currentTimeMillis() + intervalMillis
-        PreferenceHelper.saveLastAlarmTime(this, triggerTime)
-
-        alarmManager.setRepeating(
-            AlarmManager.RTC_WAKEUP,
-            triggerTime,
-            intervalMillis,
-            pendingIntent
-        )
+        AlarmReceiver.scheduleNext(this, intervalMinutes)
     }
 
     private fun cancelAlarm() {
-        val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(this, AlarmReceiver::class.java)
-        val pendingIntent = PendingIntent.getBroadcast(
-            this, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        alarmManager.cancel(pendingIntent)
-        PreferenceHelper.saveLastAlarmTime(this, -1L)
+        AlarmReceiver.cancel(this)
     }
 
     // --- Dialogi ---

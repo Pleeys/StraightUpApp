@@ -127,15 +127,13 @@ object PreferenceHelper {
 
     fun saveConfirmation(context: Context) {
         val prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        // Całkowita liczba potwierdzeń
-        val current = prefs.getInt(KEY_CONFIRM_COUNT, 0)
-        prefs.edit().putInt(KEY_CONFIRM_COUNT, current + 1).apply()
-        // Potwierdzenie dla dzisiejszego dnia (format: confirm_day_2026-03-23)
         val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
             .format(java.util.Date())
         val dayKey = KEY_CONFIRM_PREFIX + today
-        val todayCount = prefs.getInt(dayKey, 0)
-        prefs.edit().putInt(dayKey, todayCount + 1).apply()
+        prefs.edit()
+            .putInt(KEY_CONFIRM_COUNT, prefs.getInt(KEY_CONFIRM_COUNT, 0) + 1)
+            .putInt(dayKey, prefs.getInt(dayKey, 0) + 1)
+            .apply()
     }
 
     fun getConfirmationCount(context: Context): Int {
