@@ -60,6 +60,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<ImageView>(R.id.avatarImage).setOnClickListener {
             startActivity(Intent(this, ProfileActivity::class.java))
         }
+        findViewById<ImageView>(R.id.settingsButton).setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
+        }
     }
 
     private fun setupNotificationChannel() {
@@ -263,6 +266,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         refreshHandler.post(refreshRunnable)
         setupHeader()
+        setupAlarmSection()
         updateConfirmCount()
     }
 

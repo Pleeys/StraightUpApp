@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew assembleDebug)",
+      "Bash(GRADLE_OPTS=\"-Xmx512m\" ./gradlew assembleDebug --no-daemon)"
+    ]
+  }
+}

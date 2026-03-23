@@ -18,6 +18,9 @@
             android:name=".ProfileActivity"
             android:exported="false" />
         <activity
+            android:name=".SettingsActivity"
+            android:exported="false" />
+        <activity
             android:name=".ExercisesActivity"
             android:exported="false" />
         <activity
