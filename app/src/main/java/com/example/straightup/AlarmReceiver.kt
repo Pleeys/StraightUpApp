@@ -55,8 +55,8 @@ class AlarmReceiver : BroadcastReceiver() {
                 } else {
                     alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerTime, pending)
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Exact alarm scheduling failed, using inexact fallback", e)
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Exact alarm requires SCHEDULE_EXACT_ALARM permission, using inexact fallback", e)
                 alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pending)
             }
         }
@@ -117,7 +117,7 @@ class AlarmReceiver : BroadcastReceiver() {
             cal.set(Calendar.SECOND, 0)
             cal.set(Calendar.MILLISECOND, 0)
             // Jeśli koniec przerwy jest wcześniej niż teraz (przekroczono północ) → jutro
-            if (cal.timeInMillis <= System.currentTimeMillis()) {
+            if (cal.timeInMillis < System.currentTimeMillis()) {
                 cal.add(Calendar.DAY_OF_YEAR, 1)
             }
             cal.timeInMillis
